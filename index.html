@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whack-a-Robot</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>Whack-a-Robot</h1>
+            <div class="score-container">
+                <span>Score: </span>
+                <span id="score">0</span>
+            </div>
+            <div class="time-container">
+                <span>Time: </span>
+                <span id="time">30</span>
+            </div>
+            <button id="start-button">Start Game</button>
+        </div>
+        <div class="game-board">
+            <div class="hole" id="hole-q" data-key="Q">
+                <div class="robot"></div>
+                <div class="key-hint">Q</div>
+            </div>
+            <div class="hole" id="hole-w" data-key="W">
+                <div class="robot"></div>
+                <div class="key-hint">W</div>
+            </div>
+            <div class="hole" id="hole-e" data-key="E">
+                <div class="robot"></div>
+                <div class="key-hint">E</div>
+            </div>
+            <div class="hole" id="hole-a" data-key="A">
+                <div class="robot"></div>
+                <div class="key-hint">A</div>
+            </div>
+            <div class="hole" id="hole-s" data-key="S">
+                <div class="robot"></div>
+                <div class="key-hint">S</div>
+            </div>
+            <div class="hole" id="hole-d" data-key="D">
+                <div class="robot"></div>
+                <div class="key-hint">D</div>
+            </div>
+        </div>
+        <div class="instructions">
+            <p>Press the corresponding key (Q, W, E, A, S, D) when a robot appears to whack it!</p>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html> 
