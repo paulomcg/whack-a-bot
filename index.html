@@ -1106,9 +1106,11 @@
         let timeLeft = 60; // Increased to 60 seconds
         let gameInterval;
         let popUpInterval;
+        let activeBots = 0; // Track number of active bots
+        let maxSimultaneousBots = 1; // Start with 1 bot max
         let isPlaying = false;
         let lastHole;
-        let difficulty = 0.9; // Lowered from 1.1 to 0.9 for easier start
+        let difficulty = 1.0; // Starting difficulty value
         let lastScore = 0; // Track score for difficulty increases
         let streak = 0; // Track consecutive hits
         let highestStreak = 0; // Track highest streak
@@ -1155,7 +1157,9 @@
             score = 0;
             lastScore = 0;
             timeLeft = 60; // Increased to 60 seconds
-            difficulty = 0.9; // Lowered from 1.1 to 0.9 for easier start
+            difficulty = 1.0; // Reset difficulty to initial value
+            maxSimultaneousBots = 1; // Reset to 1 bot max
+            activeBots = 0; // Reset active bots counter
             streak = 0;
             highestStreak = 0;
             currentLevel = 1;
@@ -1262,8 +1266,11 @@
             // Increase level
             currentLevel = Math.min(currentLevel + 1, 5); // Max level 5
             
-            // Reset difficulty but start slightly higher than before
-            difficulty = 1.2; // Increased from 1.0 to 1.2
+            // Reset difficulty but start slightly higher for each level
+            difficulty = 1.0 + (currentLevel * 0.2); // Difficulty scales with level
+            
+            // Also increase max simultaneous bots with level
+            maxSimultaneousBots = Math.min(1 + Math.floor(currentLevel/2), 3); // Max 3 bots at once
             
             // Add time bonus for leveling up (reduced to 15 seconds)
             timeLeft += 15;
@@ -1344,19 +1351,34 @@
         function scheduleNextRobot() {
             if (!isPlaying) return;
             
+            // Only spawn new robots if we're under the max simultaneous limit
+            if (activeBots >= maxSimultaneousBots) {
+                return;
+            }
+            
             // Calculate delays based on current difficulty and score
             // More gradual scaling with score and level
-            const levelFactor = 1 / Math.pow(currentLevel, 0.4); // Reduced from 0.45 to 0.4 for gentler curve
-            const scoreMultiplier = 1 + (score * 0.04 * levelFactor); // Reduced from 0.06 to 0.04
-            const minDelay = Math.max(200, 1600 - (difficulty * 180 * levelFactor) - (score * 8 * levelFactor)); // Increased min delay
-            const maxDelay = Math.max(400, 2000 - (difficulty * 220 * levelFactor) - (score * 12 * levelFactor)); // Increased max delay
+            const levelFactor = 1 / Math.pow(currentLevel, 0.35);
+            const scoreMultiplier = 1 + (score * 0.05 * levelFactor);
+            const minDelay = Math.max(180, 1600 - (difficulty * 200 * levelFactor) - (score * 10 * levelFactor));
+            const maxDelay = Math.max(350, 2000 - (difficulty * 240 * levelFactor) - (score * 15 * levelFactor));
             
             const delay = getRandomTime(minDelay, maxDelay);
             
             // Debug
-            console.log(`Next robot in ${delay}ms (Difficulty: ${difficulty.toFixed(2)}, Level: ${currentLevel}, Score: ${score})`);
+            console.log(`Next robot in ${delay}ms (Difficulty: ${difficulty.toFixed(2)}, Level: ${currentLevel}, Score: ${score}, Active bots: ${activeBots}/${maxSimultaneousBots})`);
             
-            popUpInterval = setTimeout(popRobot, delay);
+            // Track active bots
+            activeBots++;
+            
+            popUpInterval = setTimeout(() => {
+                popRobot();
+                
+                // Schedule another bot if we still can
+                if (activeBots < maxSimultaneousBots) {
+                    scheduleNextRobot();
+                }
+            }, delay);
         }
         
         // Countdown timer
@@ -1491,9 +1513,10 @@
             
             // Robot stays up for more time as difficulty increases and score increases
             // More gradual scaling with level and score
-            const levelFactor = 1 / Math.pow(currentLevel, 0.4); // Reduced from 0.45 to 0.4
-            const minTime = Math.max(400, 1600 - (difficulty * 140 * levelFactor) - (score * 12 * levelFactor)); // Increased min time
-            const maxTime = Math.max(700, 2000 - (difficulty * 180 * levelFactor) - (score * 18 * levelFactor)); // Increased max time
+            const levelFactor = 1 / Math.pow(currentLevel, 0.35);
+            const scoreMultiplier = 1 + (score * 0.05 * levelFactor);
+            const minTime = Math.max(400, 1600 - (difficulty * 140 * levelFactor) - (score * 12 * levelFactor));
+            const maxTime = Math.max(700, 2000 - (difficulty * 180 * levelFactor) - (score * 18 * levelFactor));
             
             const time = getRandomTime(minTime, maxTime);
             const hole = getRandomHole();
@@ -1501,7 +1524,7 @@
             const keyHint = hole.querySelector('.key-hint');
             
             // Debug
-            console.log(`Robot up for ${time}ms (Difficulty: ${difficulty.toFixed(2)}, Level: ${currentLevel}, Score: ${score})`);
+            console.log(`Robot up for ${time}ms (Difficulty: ${difficulty.toFixed(2)}, Level: ${currentLevel}, Score: ${score}, Active bots: ${activeBots}/${maxSimultaneousBots})`);
             
             // Add steampunk elements to robot
             if (!robot.querySelector('.head')) {
@@ -1586,6 +1609,10 @@
                     // Remove glow effect
                     removeGlowEffect(robot);
                     
+                    // Decrease active bots counter
+                    activeBots--;
+                    
+                    // Schedule next robot if needed
                     scheduleNextRobot();
                 }
             }, time);
@@ -1890,19 +1917,30 @@
                     // Increment streak and check for streak bonus
                     handleStreakBonus();
                     
-                    // Check if score has increased by 2 points
+                    // Check if score has increased by 2 points (every 2 points)
                     if (Math.floor(score / 2) > Math.floor(lastScore / 2)) {
-                        // Increase difficulty every 2 points, but scale based on level
-                        // More gradual difficulty increases
-                        const difficultyIncrease = 0.25 / Math.pow(currentLevel, 0.4); // Reduced from 0.4 to 0.25 and gentler curve
-                        difficulty += difficultyIncrease;
-                        console.log(`Difficulty increased to ${difficulty.toFixed(2)} (Level ${currentLevel}, +${difficultyIncrease.toFixed(3)})`);
+                        // Increase difficulty every 2 points
+                        difficulty += 0.3; // Steeper difficulty increase
+                        
+                        // Check if we should increase max simultaneous bots
+                        if (difficulty > 3 && maxSimultaneousBots < 2) {
+                            maxSimultaneousBots = 2;
+                        } else if (difficulty > 5 && maxSimultaneousBots < 3) {
+                            maxSimultaneousBots = 3;
+                        }
+                        
+                        console.log(`Difficulty increased to ${difficulty.toFixed(2)} (Level ${currentLevel}, Max Bots: ${maxSimultaneousBots})`);
+                        
+                        // Try to schedule another bot if we can have more
+                        if (activeBots < maxSimultaneousBots) {
+                            scheduleNextRobot();
+                        }
                     }
                     
-                    // Check for level up (every 25 points instead of 30)
+                    // Check for level up (every 25 points)
                     if (score >= pointsToNextLevel && currentLevel < 5) {
                         levelUp();
-                        pointsToNextLevel += 25; // Next level requires 25 more points (reduced from 30)
+                        pointsToNextLevel += 25;
                     }
                     
                     // Update lastScore
