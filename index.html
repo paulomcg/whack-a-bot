@@ -68,7 +68,7 @@
         border-radius: 16px;
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         border: 1px solid rgba(255, 255, 255, 0.05);
-        position: relative;
+        position: relative; /* Ensure absolute positioned children are relative to this container */
         overflow: hidden;
     }
 
@@ -938,7 +938,7 @@
         padding: 15px 25px;
         background-color: var(--bg-tertiary);
         border-radius: 8px;
-        z-index: 9999;
+        z-index: 10000; /* Increased z-index to be above everything */
         animation: notification-appear 0.3s;
         border: 1px solid rgba(255, 255, 255, 0.1);
         text-align: center;
@@ -953,6 +953,24 @@
         margin-bottom: 8px;
         line-height: 1.2;
         text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    .notification-multiplier {
+        display: inline-block;
+        font-size: 0.9rem;
+        font-weight: 700;
+        background-color: var(--accent-primary);
+        color: white;
+        padding: 2px 8px;
+        border-radius: 12px;
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        animation: pulse-once 0.5s;
+        min-width: 20px;
+        text-align: center;
+        z-index: 9999; /* Ensure it's on top */
     }
     
     .notification-secondary {
@@ -1210,6 +1228,18 @@
 
     .sound-toggle.muted {
         opacity: 0.7;
+    }
+
+    .notification-multiplier {
+        display: inline-block;
+        font-size: 1.4rem;
+        font-weight: 700;
+        background-color: rgba(255, 255, 255, 0.15);
+        padding: 1px 6px;
+        border-radius: 10px;
+        margin-left: 5px;
+        vertical-align: middle;
+        animation: pulse 1s ease-in-out;
     }
     </style>
 </head>
@@ -2094,9 +2124,55 @@
         const MAX_ACTIVE_NOTIFICATIONS = 3;
         const NOTIFICATION_SPACING = 80; // Vertical spacing between notifications
         
+        // Notification tracking
+        let activeNotificationMap = {}; // Track notifications by text
+        
         // Show notification
         function showNotification(text, color, secondaryText = null) {
-            notificationQueue.push({ text, color, secondaryText });
+            // Check if we already have this notification active
+            const notificationKey = `${text}-${secondaryText}`;
+            
+            if (activeNotificationMap[notificationKey]) {
+                // Update existing notification with multiplier
+                const existingNotification = activeNotificationMap[notificationKey];
+                existingNotification.count++;
+                
+                // Update notification text with count
+                const mainText = existingNotification.element.querySelector('.notification-main');
+                
+                // Clear existing content to the original text
+                mainText.textContent = text;
+                
+                // Find existing multiplier or create a new one
+                let multiplier = existingNotification.element.querySelector('.notification-multiplier');
+                if (!multiplier) {
+                    multiplier = document.createElement('div');
+                    multiplier.className = 'notification-multiplier';
+                    existingNotification.element.appendChild(multiplier);
+                }
+                
+                // Update multiplier text
+                multiplier.textContent = `x${existingNotification.count}`;
+                multiplier.style.display = existingNotification.count > 1 ? 'block' : 'none';
+                
+                // Reset fade timer
+                clearTimeout(existingNotification.timeout);
+                existingNotification.timeout = setTimeout(() => {
+                    existingNotification.element.classList.add('fade-out');
+                    setTimeout(() => {
+                        existingNotification.element.remove();
+                        activeNotifications--;
+                        delete activeNotificationMap[notificationKey];
+                        isProcessingQueue = false;
+                        processNotificationQueue();
+                    }, 500);
+                }, 2000);
+                
+                return;
+            }
+            
+            // If not a duplicate, add to queue
+            notificationQueue.push({ text, color, secondaryText, key: notificationKey });
             processNotificationQueue();
         }
         
@@ -2134,19 +2210,27 @@
             // Calculate position based on number of active notifications
             const baseTop = 50; // Center vertically
             const offset = (activeNotifications * NOTIFICATION_SPACING);
-            notificationElement.style.top = `${baseTop + offset}%`;
+            notificationElement.style.top = `calc(${baseTop}% - ${offset}px)`;
             
-            // Append to game board instead of body
-            const gameBoard = document.querySelector('.game-board');
-            gameBoard.appendChild(notificationElement);
+            // Append to game container instead of game board for better layering
+            const gameContainer = document.querySelector('.game-container');
+            gameContainer.appendChild(notificationElement);
             activeNotifications++;
             
+            // Store reference to notification
+            activeNotificationMap[notification.key] = {
+                element: notificationElement,
+                count: 1,
+                timeout: null
+            };
+            
             // Animate and remove
-            setTimeout(() => {
+            activeNotificationMap[notification.key].timeout = setTimeout(() => {
                 notificationElement.classList.add('fade-out');
                 setTimeout(() => {
                     notificationElement.remove();
                     activeNotifications--;
+                    delete activeNotificationMap[notification.key];
                     isProcessingQueue = false;
                     processNotificationQueue();
                 }, 500);
@@ -2469,7 +2553,7 @@
                 padding: 15px 25px;
                 background-color: var(--bg-tertiary);
                 border-radius: 8px;
-                z-index: 9999;
+                z-index: 10000; /* Increased z-index to be above everything */
                 animation: notification-appear 0.3s;
                 border: 1px solid rgba(255, 255, 255, 0.1);
                 text-align: center;
