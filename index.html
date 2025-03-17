@@ -281,6 +281,16 @@
         transform: perspective(1000px) rotateX(5deg);
     }
 
+    /* For levels with many holes, adjust spacing */
+    .game-board.many-holes .hole {
+        height: 110px;
+    }
+
+    .game-board.many-holes .robot {
+        width: 65px;
+        height: 65px;
+    }
+
     .hole {
         position: relative;
         height: 120px;
@@ -819,42 +829,68 @@
 
     @media (max-width: 600px) {
         .game-board {
-            grid-template-columns: repeat(2, 1fr);
-            grid-template-rows: repeat(3, 1fr);
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            grid-template-rows: repeat(2, 1fr);
+            gap: 10px;
             transform: perspective(1000px) rotateX(3deg);
         }
         
         .hole {
-            height: 100px;
+            height: 90px;
         }
         
         .robot {
-            width: 60px;
-            height: 60px;
+            width: 55px;
+            height: 55px;
         }
 
         .stats-container {
             grid-template-columns: repeat(3, 1fr);
-        }
-        
-        .timer-value {
-            font-size: 2.8rem;
-        }
-    }
-
-    @media (max-width: 400px) {
-        .stats-container {
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-        }
-        
-        .stat-value {
-            font-size: 1.5rem;
         }
         
         .timer-value {
             font-size: 2.5rem;
+        }
+        
+        .key-hint {
+            font-size: 0.7rem;
+            width: 20px;
+            height: 20px;
+        }
+    }
+
+    @media (max-width: 400px) {
+        .game-board {
+            grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+            gap: 8px;
+        }
+        
+        .hole {
+            height: 80px;
+        }
+        
+        .robot {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .stats-container {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .stat-value {
+            font-size: 1.3rem;
+        }
+        
+        .timer-value {
+            font-size: 2.2rem;
+        }
+        
+        .key-hint {
+            font-size: 0.6rem;
+            width: 18px;
+            height: 18px;
         }
     }
 
@@ -1038,6 +1074,98 @@
     .time-pulse {
         animation: time-pulse 0.8s infinite;
     }
+
+    /* Additional styles for many-holes game board */
+    .game-board.many-holes .key-hint {
+        font-size: 0.7rem;
+        bottom: 6px;
+        width: 22px;
+        height: 22px;
+    }
+
+    @media (max-width: 800px) {
+        .game-board.many-holes .hole {
+            height: 100px;
+        }
+        
+        .game-board.many-holes .robot {
+            width: 60px;
+            height: 60px;
+        }
+        
+        .game-board.many-holes .key-hint {
+            font-size: 0.65rem;
+            width: 20px;
+            height: 20px;
+        }
+    }
+
+    @media (max-width: 600px) {
+        .game-board {
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            grid-template-rows: repeat(2, 1fr);
+            gap: 10px;
+            transform: perspective(1000px) rotateX(3deg);
+        }
+        
+        .hole {
+            height: 90px;
+        }
+        
+        .robot {
+            width: 55px;
+            height: 55px;
+        }
+
+        .stats-container {
+            grid-template-columns: repeat(3, 1fr);
+        }
+        
+        .timer-value {
+            font-size: 2.5rem;
+        }
+        
+        .key-hint {
+            font-size: 0.7rem;
+            width: 20px;
+            height: 20px;
+        }
+    }
+
+    @media (max-width: 400px) {
+        .game-board {
+            grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+            gap: 8px;
+        }
+        
+        .hole {
+            height: 80px;
+        }
+        
+        .robot {
+            width: 50px;
+            height: 50px;
+        }
+        
+        .stats-container {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        
+        .stat-value {
+            font-size: 1.3rem;
+        }
+        
+        .timer-value {
+            font-size: 2.2rem;
+        }
+        
+        .key-hint {
+            font-size: 0.6rem;
+            width: 18px;
+            height: 18px;
+        }
+    }
     </style>
 </head>
 <body>
@@ -1209,19 +1337,20 @@
             const currentKeys = keysByLevel[currentLevel];
             
             // Calculate grid layout based on number of holes
-            let columns = 3;
-            if (currentKeys.length > 6) {
-                columns = 4;
-            }
-            if (currentKeys.length > 8) {
-                columns = 5;
-            }
-            
-            const rows = Math.ceil(currentKeys.length / columns);
+            // Ensure we always have at most 2 rows by calculating the minimum number of columns needed
+            const rows = 2; // Always use 2 rows
+            const columns = Math.ceil(currentKeys.length / rows); // Calculate columns needed to fit all holes in 2 rows
             
             // Update grid layout
             gameBoard.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
             gameBoard.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+            
+            // Add class for many holes (level 4 and 5)
+            if (currentKeys.length > 10) {
+                gameBoard.classList.add('many-holes');
+            } else {
+                gameBoard.classList.remove('many-holes');
+            }
             
             // Create holes for current level
             currentKeys.forEach(keyCode => {
@@ -1251,7 +1380,7 @@
             // Update instructions
             updateInstructions(currentKeys);
             
-            console.log(`Game board reset for level ${currentLevel} with ${currentKeys.length} holes`);
+            console.log(`Game board reset for level ${currentLevel} with ${currentKeys.length} holes (${columns} columns x 2 rows)`);
         }
         
         // Update instructions based on current level
