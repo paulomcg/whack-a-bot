@@ -1166,11 +1166,64 @@
             height: 18px;
         }
     }
+
+    /* Sound toggle button styles */
+    .sound-toggle {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        width: 36px;
+        height: 36px;
+        background-color: var(--bg-tertiary);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 100;
+        transition: all 0.3s ease;
+    }
+
+    .sound-toggle:hover {
+        background-color: var(--bg-secondary);
+        transform: scale(1.1);
+    }
+
+    .sound-toggle.muted .sound-on {
+        display: none;
+    }
+
+    .sound-toggle:not(.muted) .sound-off {
+        display: none;
+    }
+
+    .sound-icon {
+        width: 20px;
+        height: 20px;
+        fill: var(--text-secondary);
+    }
+
+    .sound-toggle:hover .sound-icon {
+        fill: var(--text-primary);
+    }
+
+    .sound-toggle.muted {
+        opacity: 0.7;
+    }
     </style>
 </head>
 <body>
     <div class="game-container">
         <div class="hexagon-bg"></div>
+        <div class="sound-toggle">
+            <svg class="sound-icon sound-on" viewBox="0 0 24 24">
+                <path d="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.84 14,18.7V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16C15.5,15.29 16.5,13.76 16.5,12M3,9V15H7L12,20V4L7,9H3Z" />
+            </svg>
+            <svg class="sound-icon sound-off" viewBox="0 0 24 24">
+                <path d="M12,4L9.91,6.09L12,8.18V4M4.27,3L3,4.27L7.73,9H3V15H7L12,20V13.27L16.25,17.53C15.58,18.04 14.83,18.46 14,18.7V20.77C15.38,20.45 16.63,19.82 17.68,18.96L19.73,21L21,19.73L12,10.73L4.27,3M19,12C19,12.94 18.8,13.82 18.46,14.64L19.97,16.15C20.62,14.91 21,13.5 21,12C21,7.72 18,4.14 14,3.23V5.29C16.89,6.15 19,8.83 19,12M16.5,12C16.5,10.23 15.5,8.71 14,7.97V10.18L16.45,12.63C16.5,12.43 16.5,12.21 16.5,12Z" />
+            </svg>
+        </div>
         <div class="header">
             <h1>WHACK-A-ROBOT</h1>
             <div class="timer-container">
@@ -1235,6 +1288,7 @@
         const startButton = document.getElementById('start-button');
         const streakDisplay = document.getElementById('streak');
         const gameContainer = document.querySelector('.game-container');
+        const soundToggle = document.querySelector('.sound-toggle');
         
         // Game variables
         let score = 0;
@@ -1251,13 +1305,122 @@
         let highestStreak = 0; // Track highest streak
         let currentLevel = 1; // Track current level
         let pointsToNextLevel = 25; // Points needed to level up
+        let soundEnabled = true; // Sound enabled by default
         
-        // Sound effects
-        const createAudio = (src) => {
-            const audio = new Audio();
-            audio.src = `data:audio/mp3;base64,${src}`;
-            return audio;
+        // Preload audio - simplified approach with short audio files for better browser compatibility
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let audioInitialized = false;
+        
+        // Sound buffers
+        const soundBuffers = {
+            hit: null,
+            miss: null,
+            levelUp: null
         };
+        
+        // Create sounds from oscillators for better browser compatibility
+        function createSound(type) {
+            // Initialize AudioContext on first user interaction
+            if (!audioInitialized) {
+                audioContext.resume().then(() => {
+                    audioInitialized = true;
+                });
+            }
+            
+            if (!audioInitialized) return;
+            
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            // Set oscillator type and frequency based on sound type
+            switch (type) {
+                case 'hit':
+                    // Metallic clang sound
+                    oscillator.type = 'square';
+                    oscillator.frequency.setValueAtTime(220, audioContext.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(110, audioContext.currentTime + 0.2);
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                    break;
+                    
+                case 'miss':
+                    // Sad boing sound
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(300, audioContext.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(180, audioContext.currentTime + 0.2);
+                    gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                    break;
+                    
+                case 'levelUp':
+                    // Happy ascending sound
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(880, audioContext.currentTime + 0.2);
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+                    break;
+            }
+            
+            // Connect nodes
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Start oscillator
+            oscillator.start();
+            
+            // Stop after short duration
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }
+        
+        // Function to play sound with volume control
+        function playSound(type) {
+            // Only play if sound is enabled
+            if (!soundEnabled) return;
+            
+            // Ensure context is running (browsers require user interaction)
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            
+            // Create and play the sound
+            createSound(type);
+        }
+        
+        // Toggle sound on/off
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            if (soundEnabled) {
+                soundToggle.classList.remove('muted');
+                // Play a short tone to confirm sound is on
+                setTimeout(() => playSound('hit'), 100);
+            } else {
+                soundToggle.classList.add('muted');
+            }
+            
+            // Save sound preference to localStorage
+            localStorage.setItem('whack-a-robot-sound', soundEnabled ? 'on' : 'off');
+        }
+        
+        // Initialize sound toggle from localStorage (if available)
+        function initSoundToggle() {
+            // Initialize audio on first interaction
+            document.addEventListener('click', function initAudio() {
+                audioContext.resume().then(() => {
+                    audioInitialized = true;
+                    document.removeEventListener('click', initAudio);
+                });
+            }, { once: true });
+            
+            const savedSoundPref = localStorage.getItem('whack-a-robot-sound');
+            if (savedSoundPref === 'off') {
+                soundEnabled = false;
+                soundToggle.classList.add('muted');
+            }
+            
+            // Add event listener to sound toggle button
+            soundToggle.addEventListener('click', toggleSound);
+        }
         
         // Key mapping - expanded to include more keys for additional levels
         const keyMap = {
@@ -2032,6 +2195,9 @@
                     score++;
                     scoreDisplay.textContent = score;
                     
+                    // Play hit sound
+                    playSound('hit');
+                    
                     // Create GREEN particles at whack location for successful hit
                     const rect = robot.getBoundingClientRect();
                     createParticles(rect.left + rect.width / 2, rect.top + rect.height / 2, 'var(--success)');
@@ -2075,6 +2241,9 @@
                     
                     // Check for level up (every 25 points)
                     if (score >= pointsToNextLevel && currentLevel < 5) {
+                        // Play level up sound
+                        playSound('levelUp');
+                        
                         levelUp();
                         pointsToNextLevel += 25;
                     }
@@ -2082,6 +2251,9 @@
                     // Update lastScore
                     lastScore = score;
                 } else if (!robot.classList.contains('up')) {
+                    // Play miss sound
+                    playSound('miss');
+                    
                     // Wrong hole penalty - reset streak and deduct time
                     handleStreakReset();
                     
@@ -2103,6 +2275,9 @@
         // Event listeners
         startButton.addEventListener('click', initGame);
         document.addEventListener('keydown', handleKeyPress);
+        
+        // Initialize sound toggle
+        initSoundToggle();
         
         // Visual feedback for key presses
         document.addEventListener('keydown', (e) => {
