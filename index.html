@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Whack-a-Robot</title>
+    <title>Whack-a-Bot</title>
     <!-- Favicons -->
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="shortcut icon" href="favicon.svg" type="image/svg+xml">
@@ -1241,10 +1241,74 @@
         vertical-align: middle;
         animation: pulse 1s ease-in-out;
     }
+
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        background-color: var(--bg-secondary);
+        padding: 30px;
+        border-radius: 16px;
+        text-align: center;
+        max-width: 400px;
+        width: 90%;
+        position: relative;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-content h2 {
+        margin-bottom: 20px;
+        color: var(--text-primary);
+        font-family: 'Space Grotesk', sans-serif;
+    }
+
+    .name-input {
+        width: 100%;
+        padding: 12px;
+        background-color: var(--bg-tertiary);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 1rem;
+        margin-bottom: 20px;
+        outline: none;
+        transition: border-color 0.2s ease;
+    }
+
+    .name-input:focus {
+        border-color: var(--accent-primary);
+    }
+
+    .player-name {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+    }
     </style>
 </head>
 <body>
+    <div class="modal" id="nameModal">
+        <div class="modal-content">
+            <h2>Welcome to Whack-a-Bot!</h2>
+            <input type="text" class="name-input" id="nameInput" placeholder="Enter your name" maxlength="20">
+            <button id="startGameBtn">Start Game</button>
+        </div>
+    </div>
+
     <div class="game-container">
+        <div class="player-name" id="playerNameDisplay"></div>
         <div class="hexagon-bg"></div>
         <div class="sound-toggle">
             <svg class="sound-icon sound-on" viewBox="0 0 24 24">
@@ -1255,7 +1319,7 @@
             </svg>
         </div>
         <div class="header">
-            <h1>WHACK-A-ROBOT</h1>
+            <h1>WHACK-A-BOT</h1>
             <div class="timer-container">
                 <div class="timer-display">
                     <div class="timer-label">Time</div>
@@ -1308,6 +1372,7 @@
             <p>Press the corresponding key (Q, W, E, A, S, D) when a robot appears to whack it! Build streaks for bonus time.</p>
         </div>
     </div>
+
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         // Game elements
@@ -2608,6 +2673,40 @@
             }
         `;
         document.head.appendChild(style);
+
+        // Name handling
+        const nameModal = document.getElementById('nameModal');
+        const nameInput = document.getElementById('nameInput');
+        const startGameBtn = document.getElementById('startGameBtn');
+        const playerNameDisplay = document.getElementById('playerNameDisplay');
+
+        // Check for saved name on page load
+        const savedName = localStorage.getItem('playerName');
+        if (savedName) {
+            nameModal.style.display = 'none';
+            playerNameDisplay.textContent = `Player: ${savedName}`;
+        } else {
+            nameModal.style.display = 'flex';
+        }
+
+        // Handle name submission
+        startGameBtn.addEventListener('click', () => {
+            const name = nameInput.value.trim();
+            if (name) {
+                localStorage.setItem('playerName', name);
+                playerNameDisplay.textContent = `Player: ${name}`;
+                nameModal.style.display = 'none';
+                // Start the game here
+                startGame();
+            }
+        });
+
+        // Allow Enter key to submit name
+        nameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                startGameBtn.click();
+            }
+        });
     });
     </script>
 </body>
